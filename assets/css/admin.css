@@ -1,0 +1,261 @@
+.cptms-wrap {
+    max-width: 1400px;
+}
+
+.cptms-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.cptms-header h1 {
+    margin: 0 0 4px;
+    padding: 0;
+}
+
+.cptms-header p {
+    margin: 0;
+    max-width: 760px;
+}
+
+.cptms-logo {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    background: #2271b1;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.cptms-logo img {
+    display: block;
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+}
+
+.cptms-title-icon {
+    margin-right: 8px;
+    vertical-align: -3px;
+}
+
+#adminmenu .wp-submenu .dashicons-share-alt {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 1.2;
+    vertical-align: -2px;
+}
+
+.cptms-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 24px;
+    align-items: start;
+}
+
+.cptms-section-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.cptms-section-heading h2,
+.cptms-panel h2 {
+    margin-top: 0;
+}
+
+.cptms-section-heading p {
+    margin-bottom: 0;
+}
+
+.cptms-section-heading .button,
+.cptms-panel .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cptms-section-heading .dashicons,
+.cptms-panel .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.cptms-rule,
+.cptms-panel,
+.cptms-empty {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 6px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.cptms-rule {
+    margin-bottom: 16px;
+}
+
+.cptms-rule-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dcdcde;
+    background: #f6f7f7;
+}
+
+.cptms-rule-title,
+.cptms-rule-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cptms-rule-title .dashicons {
+    color: #646970;
+}
+
+.cptms-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cptms-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+    padding: 18px 16px;
+}
+
+.cptms-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.cptms-field select {
+    width: 100%;
+    max-width: none;
+}
+
+.cptms-options {
+    display: grid;
+    gap: 10px;
+    padding: 0 16px 18px;
+}
+
+.cptms-options label {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+}
+
+.cptms-options input {
+    margin-top: 2px;
+}
+
+.cptms-panel {
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.cptms-panel p:last-child {
+    margin-bottom: 0;
+}
+
+.cptms-about p {
+    margin: 6px 0;
+}
+
+.cptms-empty {
+    text-align: center;
+    padding: 42px 20px;
+}
+
+.cptms-empty .dashicons {
+    width: 36px;
+    height: 36px;
+    font-size: 36px;
+    color: #8c8f94;
+}
+
+.cptms-empty h3 {
+    margin: 8px 0 4px;
+}
+
+.cptms-empty p {
+    margin: 0;
+}
+
+.cptms-empty.is-hidden {
+    display: none;
+}
+
+.cptms-form-actions {
+    margin-top: 16px;
+}
+
+.cptms-report {
+    margin: 8px 0 12px;
+    display: grid;
+    gap: 7px;
+}
+
+.cptms-report > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cptms-report span {
+    color: #646970;
+}
+
+.cptms-report ul {
+    flex-basis: 100%;
+    margin: 2px 0 0 18px;
+    list-style: disc;
+}
+
+@media screen and (max-width: 960px) {
+    .cptms-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .cptms-sidebar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .cptms-panel {
+        margin-bottom: 0;
+    }
+}
+
+@media screen and (max-width: 782px) {
+    .cptms-header,
+    .cptms-section-heading,
+    .cptms-rule-header {
+        align-items: flex-start;
+    }
+
+    .cptms-section-heading,
+    .cptms-rule-header {
+        flex-direction: column;
+    }
+
+    .cptms-grid,
+    .cptms-sidebar {
+        grid-template-columns: 1fr;
+    }
+}
+

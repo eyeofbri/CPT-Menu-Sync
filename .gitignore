@@ -1,0 +1,16 @@
+# OS / editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local/dev artifacts
+*.zip
+*.log
+node_modules/
+vendor/
+
+# WordPress/local environment files
+wp-config.php
+.env
+.env.*
