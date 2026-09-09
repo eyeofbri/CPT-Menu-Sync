@@ -5,26 +5,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Initial Tools -> CPT Menu Sync admin screen.
+ * Tools -> CPT Menu Sync admin interface.
  */
 final class CPTMS_Admin {
 
     const PAGE_SLUG = 'cpt-menu-sync';
 
+    /** @var CPTMS_Sync_Engine */
     private $engine;
 
     public function __construct( CPTMS_Sync_Engine $engine ) {
         $this->engine = $engine;
     }
 
+    /**
+     * Register admin hooks.
+     */
     public function register_hooks() {
         add_action( 'admin_menu', array( $this, 'register_page' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-        add_action( 'admin_post_cptms_save_rule', array( $this, 'handle_save' ) );
+        add_action( 'admin_post_cptms_save_rules', array( $this, 'handle_save' ) );
         add_action( 'admin_post_cptms_sync_now', array( $this, 'handle_sync_now' ) );
         add_filter( 'plugin_action_links_' . plugin_basename( CPTMS_FILE ), array( $this, 'plugin_action_links' ) );
     }
 
+    /**
+     * Add page beneath WordPress Tools.
+     *
+     * WordPress does not provide a custom icon argument for Tools submenu
+     * pages, so dashicons-share-alt is used in the plugin page branding.
+     */
     public function register_page() {
         add_management_page(
             __( 'CPT Menu Sync', 'cpt-menu-sync' ),
@@ -35,6 +45,9 @@ final class CPTMS_Admin {
         );
     }
 
+    /**
+     * Load CSS/JS only on this plugin's admin page.
+     */
     public function enqueue_assets( $hook_suffix ) {
         if ( 'tools_page_' . self::PAGE_SLUG !== $hook_suffix ) {
             return;
@@ -60,30 +73,38 @@ final class CPTMS_Admin {
             'cptms-admin',
             'CPTMS_DATA',
             array(
-                'menus'   => $this->get_menu_item_data(),
-                'strings' => array(
+                'menus'     => $this->get_menu_item_data(),
+                'ruleNonce' => wp_create_nonce( 'cptms_rule_ui' ),
+                'strings'   => array(
                     'selectParent' => __( 'Select a parent item', 'cpt-menu-sync' ),
                     'noItems'      => __( 'This menu has no items.', 'cpt-menu-sync' ),
+                    'removeRule'   => __( 'Remove rule', 'cpt-menu-sync' ),
                 ),
             )
         );
     }
 
+    /**
+     * Add Settings action link on Plugins screen.
+     */
     public function plugin_action_links( $links ) {
+        $url = admin_url( 'tools.php?page=' . self::PAGE_SLUG );
         array_unshift(
             $links,
-            '<a href="' . esc_url( admin_url( 'tools.php?page=' . self::PAGE_SLUG ) ) . '">' . esc_html__( 'Settings', 'cpt-menu-sync' ) . '</a>'
+            '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'cpt-menu-sync' ) . '</a>'
         );
-
         return $links;
     }
 
+    /**
+     * Render the admin page.
+     */
     public function render_page() {
         if ( ! current_user_can( 'edit_theme_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) );
         }
 
-        $rule       = CPTMS_Settings::get_rule();
+        $rules      = CPTMS_Settings::get_rules();
         $post_types = $this->get_post_types();
         $menus      = wp_get_nav_menus();
         $notice     = $this->consume_notice();
@@ -95,67 +116,49 @@ final class CPTMS_Admin {
                 </div>
                 <div>
                     <h1><span class="dashicons dashicons-share-alt cptms-title-icon" aria-hidden="true"></span><?php esc_html_e( 'CPT Menu Sync', 'cpt-menu-sync' ); ?></h1>
-                    <p><?php esc_html_e( 'Synchronize one post type beneath a selected parent in a classic WordPress navigation menu.', 'cpt-menu-sync' ); ?></p>
+                    <p><?php esc_html_e( 'Keep posts from any post type synchronized beneath selected parent items in classic WordPress menus.', 'cpt-menu-sync' ); ?></p>
                 </div>
             </div>
 
             <?php $this->render_notice( $notice ); ?>
 
+            <?php if ( empty( $menus ) ) : ?>
+                <div class="notice notice-warning inline">
+                    <p><?php esc_html_e( 'No classic WordPress navigation menus were found. Create a menu first, then return here to add a sync rule.', 'cpt-menu-sync' ); ?></p>
+                </div>
+            <?php endif; ?>
+
             <div class="cptms-layout">
                 <main class="cptms-main">
-                    <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
-                        <input type="hidden" name="action" value="cptms_save_rule">
-                        <?php wp_nonce_field( 'cptms_save_rule' ); ?>
+                    <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" id="cptms-rules-form">
+                        <input type="hidden" name="action" value="cptms_save_rules">
+                        <?php wp_nonce_field( 'cptms_save_rules' ); ?>
 
-                        <section class="cptms-rule">
-                            <div class="cptms-rule-header">
-                                <div class="cptms-rule-title">
-                                    <span class="dashicons dashicons-admin-links" aria-hidden="true"></span>
-                                    <strong><?php esc_html_e( 'Sync Configuration', 'cpt-menu-sync' ); ?></strong>
-                                </div>
+                        <div class="cptms-section-heading">
+                            <div>
+                                <h2><?php esc_html_e( 'Sync Rules', 'cpt-menu-sync' ); ?></h2>
+                                <p><?php esc_html_e( 'Each rule connects one post type to one menu parent. Add another rule to sync the same post type to another menu.', 'cpt-menu-sync' ); ?></p>
                             </div>
+                            <button type="button" class="button" id="cptms-add-rule">
+                                <span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
+                                <?php esc_html_e( 'Add Rule', 'cpt-menu-sync' ); ?>
+                            </button>
+                        </div>
 
-                            <div class="cptms-grid">
-                                <div class="cptms-field">
-                                    <label for="cptms-post-type"><?php esc_html_e( 'Post Type', 'cpt-menu-sync' ); ?></label>
-                                    <select id="cptms-post-type" name="rule[post_type]" required>
-                                        <option value=""><?php esc_html_e( 'Select a post type', 'cpt-menu-sync' ); ?></option>
-                                        <?php foreach ( $post_types as $post_type ) : ?>
-                                            <option value="<?php echo esc_attr( $post_type->name ); ?>" <?php selected( $rule['post_type'], $post_type->name ); ?>>
-                                                <?php echo esc_html( $post_type->labels->singular_name . ' (' . $post_type->name . ')' ); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
+                        <div id="cptms-rules" data-next-index="<?php echo esc_attr( count( $rules ) ); ?>">
+                            <?php foreach ( $rules as $index => $rule ) : ?>
+                                <?php $this->render_rule_card( $index, $rule, $post_types, $menus ); ?>
+                            <?php endforeach; ?>
+                        </div>
 
-                                <div class="cptms-field">
-                                    <label for="cptms-menu"><?php esc_html_e( 'Menu', 'cpt-menu-sync' ); ?></label>
-                                    <select id="cptms-menu" class="cptms-menu-select" name="rule[menu_id]" required>
-                                        <option value="0"><?php esc_html_e( 'Select a menu', 'cpt-menu-sync' ); ?></option>
-                                        <?php foreach ( $menus as $menu ) : ?>
-                                            <option value="<?php echo esc_attr( $menu->term_id ); ?>" <?php selected( (int) $rule['menu_id'], (int) $menu->term_id ); ?>>
-                                                <?php echo esc_html( $menu->name ); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <div class="cptms-field">
-                                    <label for="cptms-parent"><?php esc_html_e( 'Parent Menu Item', 'cpt-menu-sync' ); ?></label>
-                                    <select id="cptms-parent" class="cptms-parent-select" name="rule[parent_menu_item_id]" data-selected="<?php echo esc_attr( $rule['parent_menu_item_id'] ); ?>" required>
-                                        <option value="0"><?php esc_html_e( 'Select a parent item', 'cpt-menu-sync' ); ?></option>
-                                    </select>
-                                </div>
-
-                                <div class="cptms-field">
-                                    <label><?php esc_html_e( 'Order', 'cpt-menu-sync' ); ?></label>
-                                    <input type="text" class="regular-text" value="<?php esc_attr_e( 'Title A–Z', 'cpt-menu-sync' ); ?>" disabled>
-                                </div>
-                            </div>
-                        </section>
+                        <div id="cptms-empty" class="cptms-empty <?php echo empty( $rules ) ? '' : 'is-hidden'; ?>">
+                            <span class="dashicons dashicons-share-alt" aria-hidden="true"></span>
+                            <h3><?php esc_html_e( 'No sync rules yet', 'cpt-menu-sync' ); ?></h3>
+                            <p><?php esc_html_e( 'Add a rule to connect a post type to a navigation menu.', 'cpt-menu-sync' ); ?></p>
+                        </div>
 
                         <div class="cptms-form-actions">
-                            <?php submit_button( __( 'Save & Sync', 'cpt-menu-sync' ), 'primary', 'submit', false ); ?>
+                            <?php submit_button( __( 'Save Rules', 'cpt-menu-sync' ), 'primary', 'submit', false ); ?>
                         </div>
                     </form>
                 </main>
@@ -163,7 +166,8 @@ final class CPTMS_Admin {
                 <aside class="cptms-sidebar">
                     <div class="cptms-panel">
                         <h2><?php esc_html_e( 'Manual Sync', 'cpt-menu-sync' ); ?></h2>
-                        <p><?php esc_html_e( 'Run the configured synchronization immediately.', 'cpt-menu-sync' ); ?></p>
+                        <p><?php esc_html_e( 'Run all enabled rules immediately. Automatic syncing also occurs when matching posts or configured menus change.', 'cpt-menu-sync' ); ?></p>
+
                         <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
                             <input type="hidden" name="action" value="cptms_sync_now">
                             <?php wp_nonce_field( 'cptms_sync_now' ); ?>
@@ -175,41 +179,69 @@ final class CPTMS_Admin {
                     </div>
 
                     <div class="cptms-panel">
-                        <h2><?php esc_html_e( 'Prototype', 'cpt-menu-sync' ); ?></h2>
-                        <p><?php esc_html_e( 'v0.0.1 supports one post type, one menu parent, and alphabetical ordering.', 'cpt-menu-sync' ); ?></p>
+                        <h2><?php esc_html_e( 'Ordering', 'cpt-menu-sync' ); ?></h2>
+                        <p><?php esc_html_e( '“Menu Order” uses WordPress’s native menu_order value, making it compatible with drag-and-drop post ordering plugins such as Post Types Order.', 'cpt-menu-sync' ); ?></p>
                     </div>
+
 
                     <div class="cptms-panel cptms-about">
                         <h2><?php esc_html_e( 'CPT Menu Sync', 'cpt-menu-sync' ); ?></h2>
                         <p><?php echo esc_html( 'v' . CPTMS_VERSION ); ?></p>
-                        <p><?php esc_html_e( 'Author:', 'cpt-menu-sync' ); ?> <a href="https://github.com/eyeofbri" target="_blank" rel="noopener noreferrer">Brian McLendon</a></p>
+                        <p>
+                            <?php esc_html_e( 'Author:', 'cpt-menu-sync' ); ?>
+                            <a href="https://github.com/eyeofbri" target="_blank" rel="noopener noreferrer">Brian McLendon</a>
+                        </p>
                         <p><?php esc_html_e( 'License: MIT', 'cpt-menu-sync' ); ?></p>
                     </div>
                 </aside>
             </div>
         </div>
+
+        <script type="text/template" id="cptms-rule-template">
+            <?php
+            $this->render_rule_card(
+                '__INDEX__',
+                array(
+                    'id'                  => '',
+                    'enabled'             => true,
+                    'post_type'           => '',
+                    'menu_id'             => 0,
+                    'parent_menu_item_id' => 0,
+                    'sort_mode'           => 'menu_order',
+                    'sync_title'          => true,
+                    'remove_missing'      => true,
+                    'adopt_existing'      => true,
+                ),
+                $post_types,
+                $menus
+            );
+            ?>
+        </script>
         <?php
     }
 
+    /**
+     * Save rules and sync immediately so the saved configuration is live.
+     */
     public function handle_save() {
         if ( ! current_user_can( 'edit_theme_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) );
         }
 
-        check_admin_referer( 'cptms_save_rule' );
+        check_admin_referer( 'cptms_save_rules' );
 
-        $raw_rule = isset( $_POST['rule'] ) ? wp_unslash( $_POST['rule'] ) : array();
-        $rule     = CPTMS_Settings::sanitize_rule( $raw_rule );
+        $old_rules = CPTMS_Settings::get_rules();
+        $raw_rules = isset( $_POST['rules'] ) ? wp_unslash( $_POST['rules'] ) : array();
+        $rules     = CPTMS_Settings::sanitize_rules( $raw_rules );
 
-        CPTMS_Settings::save_rule( $rule );
-        $report = $this->engine->sync();
+        $this->engine->release_changed_rules( $old_rules, $rules );
+        CPTMS_Settings::save_rules( $rules );
+        $report = $this->engine->sync_all();
 
         $this->store_notice(
             array(
-                'type'    => empty( $report['errors'] ) ? 'success' : 'error',
-                'message' => empty( $report['errors'] )
-                    ? __( 'Configuration saved and synchronized.', 'cpt-menu-sync' )
-                    : __( 'Configuration saved, but synchronization needs attention.', 'cpt-menu-sync' ),
+                'type'    => 'success',
+                'message' => __( 'Rules saved and synchronized.', 'cpt-menu-sync' ),
                 'report'  => $report,
             )
         );
@@ -218,6 +250,9 @@ final class CPTMS_Admin {
         exit;
     }
 
+    /**
+     * Run all enabled rules immediately.
+     */
     public function handle_sync_now() {
         if ( ! current_user_can( 'edit_theme_options' ) ) {
             wp_die( esc_html__( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) );
@@ -225,14 +260,12 @@ final class CPTMS_Admin {
 
         check_admin_referer( 'cptms_sync_now' );
 
-        $report = $this->engine->sync();
+        $report = $this->engine->sync_all();
 
         $this->store_notice(
             array(
-                'type'    => empty( $report['errors'] ) ? 'success' : 'error',
-                'message' => empty( $report['errors'] )
-                    ? __( 'Synchronization complete.', 'cpt-menu-sync' )
-                    : __( 'Synchronization could not complete.', 'cpt-menu-sync' ),
+                'type'    => 'success',
+                'message' => __( 'Synchronization complete.', 'cpt-menu-sync' ),
                 'report'  => $report,
             )
         );
@@ -241,8 +274,100 @@ final class CPTMS_Admin {
         exit;
     }
 
+
+    /**
+     * Render one configurable rule card.
+     */
+    private function render_rule_card( $index, array $rule, array $post_types, array $menus ) {
+        $name_prefix = 'rules[' . $index . ']';
+        ?>
+        <section class="cptms-rule" data-rule-index="<?php echo esc_attr( $index ); ?>">
+            <input type="hidden" name="<?php echo esc_attr( $name_prefix ); ?>[id]" value="<?php echo esc_attr( $rule['id'] ); ?>">
+
+            <div class="cptms-rule-header">
+                <div class="cptms-rule-title">
+                    <span class="dashicons dashicons-share-alt" aria-hidden="true"></span>
+                    <strong><?php esc_html_e( 'Sync Rule', 'cpt-menu-sync' ); ?></strong>
+                </div>
+                <div class="cptms-rule-header-actions">
+                    <label class="cptms-toggle-label">
+                        <input type="checkbox" name="<?php echo esc_attr( $name_prefix ); ?>[enabled]" value="1" <?php checked( ! empty( $rule['enabled'] ) ); ?>>
+                        <?php esc_html_e( 'Enabled', 'cpt-menu-sync' ); ?>
+                    </label>
+                    <button type="button" class="button-link-delete cptms-remove-rule"><?php esc_html_e( 'Remove', 'cpt-menu-sync' ); ?></button>
+                </div>
+            </div>
+
+            <div class="cptms-grid">
+                <div class="cptms-field">
+                    <label><?php esc_html_e( 'Post Type', 'cpt-menu-sync' ); ?></label>
+                    <select name="<?php echo esc_attr( $name_prefix ); ?>[post_type]" required>
+                        <option value=""><?php esc_html_e( 'Select a post type', 'cpt-menu-sync' ); ?></option>
+                        <?php foreach ( $post_types as $post_type ) : ?>
+                            <option value="<?php echo esc_attr( $post_type->name ); ?>" <?php selected( $rule['post_type'], $post_type->name ); ?>>
+                                <?php echo esc_html( $post_type->labels->singular_name . ' (' . $post_type->name . ')' ); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="cptms-field">
+                    <label><?php esc_html_e( 'Menu', 'cpt-menu-sync' ); ?></label>
+                    <select class="cptms-menu-select" name="<?php echo esc_attr( $name_prefix ); ?>[menu_id]" required>
+                        <option value="0"><?php esc_html_e( 'Select a menu', 'cpt-menu-sync' ); ?></option>
+                        <?php foreach ( $menus as $menu ) : ?>
+                            <option value="<?php echo esc_attr( $menu->term_id ); ?>" <?php selected( (int) $rule['menu_id'], (int) $menu->term_id ); ?>>
+                                <?php echo esc_html( $menu->name ); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="cptms-field">
+                    <label><?php esc_html_e( 'Parent Menu Item', 'cpt-menu-sync' ); ?></label>
+                    <select class="cptms-parent-select" name="<?php echo esc_attr( $name_prefix ); ?>[parent_menu_item_id]" data-selected="<?php echo esc_attr( $rule['parent_menu_item_id'] ); ?>" required>
+                        <option value="0"><?php esc_html_e( 'Select a parent item', 'cpt-menu-sync' ); ?></option>
+                    </select>
+                </div>
+
+                <div class="cptms-field">
+                    <label><?php esc_html_e( 'Order', 'cpt-menu-sync' ); ?></label>
+                    <select name="<?php echo esc_attr( $name_prefix ); ?>[sort_mode]">
+                        <option value="menu_order" <?php selected( $rule['sort_mode'], 'menu_order' ); ?>><?php esc_html_e( 'Menu Order → Title (Post Types Order compatible)', 'cpt-menu-sync' ); ?></option>
+                        <option value="title_asc" <?php selected( $rule['sort_mode'], 'title_asc' ); ?>><?php esc_html_e( 'Title A–Z', 'cpt-menu-sync' ); ?></option>
+                        <option value="title_desc" <?php selected( $rule['sort_mode'], 'title_desc' ); ?>><?php esc_html_e( 'Title Z–A', 'cpt-menu-sync' ); ?></option>
+                        <option value="date_desc" <?php selected( $rule['sort_mode'], 'date_desc' ); ?>><?php esc_html_e( 'Newest first', 'cpt-menu-sync' ); ?></option>
+                        <option value="date_asc" <?php selected( $rule['sort_mode'], 'date_asc' ); ?>><?php esc_html_e( 'Oldest first', 'cpt-menu-sync' ); ?></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="cptms-options">
+                <label>
+                    <input type="checkbox" name="<?php echo esc_attr( $name_prefix ); ?>[sync_title]" value="1" <?php checked( ! empty( $rule['sync_title'] ) ); ?>>
+                    <span><strong><?php esc_html_e( 'Sync titles', 'cpt-menu-sync' ); ?></strong> <?php esc_html_e( 'Keep menu labels matched to post titles.', 'cpt-menu-sync' ); ?></span>
+                </label>
+
+                <label>
+                    <input type="checkbox" name="<?php echo esc_attr( $name_prefix ); ?>[remove_missing]" value="1" <?php checked( ! empty( $rule['remove_missing'] ) ); ?>>
+                    <span><strong><?php esc_html_e( 'Remove missing', 'cpt-menu-sync' ); ?></strong> <?php esc_html_e( 'Remove managed items when posts are unpublished, trashed, or deleted.', 'cpt-menu-sync' ); ?></span>
+                </label>
+
+                <label>
+                    <input type="checkbox" name="<?php echo esc_attr( $name_prefix ); ?>[adopt_existing]" value="1" <?php checked( ! empty( $rule['adopt_existing'] ) ); ?>>
+                    <span><strong><?php esc_html_e( 'Adopt existing', 'cpt-menu-sync' ); ?></strong> <?php esc_html_e( 'Use matching manually-added post items instead of creating duplicates.', 'cpt-menu-sync' ); ?></span>
+                </label>
+            </div>
+        </section>
+        <?php
+    }
+
+    /**
+     * Get manageable post type objects.
+     */
     private function get_post_types() {
         $objects = get_post_types( array( 'show_ui' => true ), 'objects' );
+
         unset( $objects['attachment'] );
 
         uasort(
@@ -255,69 +380,121 @@ final class CPTMS_Admin {
         return $objects;
     }
 
+    /**
+     * Provide menu items to JavaScript for dependent parent dropdowns.
+     */
     private function get_menu_item_data() {
         $data = array();
 
         foreach ( wp_get_nav_menus() as $menu ) {
             $items = wp_get_nav_menu_items( $menu->term_id );
             $items = is_array( $items ) ? $items : array();
-
-            $data[ (string) $menu->term_id ] = array();
-
-            foreach ( $items as $item ) {
-                $data[ (string) $menu->term_id ][] = array(
-                    'id'    => (int) $item->ID,
-                    'label' => wp_strip_all_tags( $item->title ),
-                );
-            }
+            $data[ (string) $menu->term_id ] = $this->flatten_menu_items( $items );
         }
 
         return $data;
     }
 
+    /**
+     * Convert menu items into a label/value list with visual nesting.
+     */
+    private function flatten_menu_items( array $items ) {
+        $children = array();
+
+        foreach ( $items as $item ) {
+            $parent = (int) $item->menu_item_parent;
+            if ( ! isset( $children[ $parent ] ) ) {
+                $children[ $parent ] = array();
+            }
+            $children[ $parent ][] = $item;
+        }
+
+        $flat = array();
+        $walk = function( $parent_id, $depth ) use ( &$walk, &$children, &$flat ) {
+            if ( empty( $children[ $parent_id ] ) ) {
+                return;
+            }
+
+            foreach ( $children[ $parent_id ] as $item ) {
+                $flat[] = array(
+                    'id'    => (int) $item->ID,
+                    'label' => str_repeat( '— ', $depth ) . wp_strip_all_tags( $item->title ),
+                );
+                $walk( (int) $item->ID, $depth + 1 );
+            }
+        };
+
+        $walk( 0, 0 );
+
+        return $flat;
+    }
+
+    /**
+     * Store a one-use admin notice for the current user.
+     */
     private function store_notice( array $notice ) {
         set_transient( 'cptms_notice_' . get_current_user_id(), $notice, MINUTE_IN_SECONDS );
     }
 
+    /**
+     * Consume the current user's notice.
+     */
     private function consume_notice() {
         $key    = 'cptms_notice_' . get_current_user_id();
         $notice = get_transient( $key );
         delete_transient( $key );
-
         return is_array( $notice ) ? $notice : null;
     }
 
+    /**
+     * Render save/sync status and optional per-rule report.
+     */
     private function render_notice( $notice ) {
         if ( ! is_array( $notice ) || empty( $notice['message'] ) ) {
             return;
         }
 
-        $class  = 'error' === ( isset( $notice['type'] ) ? $notice['type'] : '' ) ? 'notice-error' : 'notice-success';
-        $report = isset( $notice['report'] ) && is_array( $notice['report'] ) ? $notice['report'] : array();
+        $class = 'error' === ( $notice['type'] ?? '' ) ? 'notice-error' : 'notice-success';
         ?>
-        <div class="notice <?php echo esc_attr( $class ); ?> is-dismissible">
+        <div class="notice <?php echo esc_attr( $class ); ?> is-dismissible cptms-notice">
             <p><strong><?php echo esc_html( $notice['message'] ); ?></strong></p>
-            <?php if ( ! empty( $report ) ) : ?>
-                <p>
-                    <?php
-                    echo esc_html(
-                        sprintf(
-                            'Matched %1$d · Added %2$d · Updated %3$d · Removed %4$d',
-                            isset( $report['matched'] ) ? (int) $report['matched'] : 0,
-                            isset( $report['created'] ) ? (int) $report['created'] : 0,
-                            isset( $report['updated'] ) ? (int) $report['updated'] : 0,
-                            isset( $report['removed'] ) ? (int) $report['removed'] : 0
-                        )
-                    );
-                    ?>
-                </p>
-                <?php if ( ! empty( $report['errors'] ) ) : ?>
-                    <ul>
-                        <?php foreach ( $report['errors'] as $error ) : ?>
-                            <li><?php echo esc_html( $error ); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
+
+            <?php if ( ! empty( $notice['report'] ) && is_array( $notice['report'] ) ) : ?>
+                <div class="cptms-report">
+                    <?php foreach ( $notice['report'] as $row ) : ?>
+                        <?php
+                        $post_type = get_post_type_object( $row['post_type'] );
+                        $menu      = wp_get_nav_menu_object( $row['menu_id'] );
+                        $label     = $post_type ? $post_type->labels->name : $row['post_type'];
+                        ?>
+                        <div>
+                            <strong><?php echo esc_html( $label ); ?></strong>
+                            <?php if ( $menu ) : ?>
+                                <?php echo esc_html( ' → ' . $menu->name ); ?>
+                            <?php endif; ?>
+                            <span>
+                                <?php
+                                echo esc_html(
+                                    sprintf(
+                                        'Matched %1$d · Added %2$d · Updated %3$d · Removed %4$d',
+                                        (int) $row['matched'],
+                                        (int) $row['created'],
+                                        (int) $row['updated'],
+                                        (int) $row['removed']
+                                    )
+                                );
+                                ?>
+                            </span>
+                            <?php if ( ! empty( $row['errors'] ) ) : ?>
+                                <ul>
+                                    <?php foreach ( $row['errors'] as $error ) : ?>
+                                        <li><?php echo esc_html( $error ); ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             <?php endif; ?>
         </div>
         <?php
