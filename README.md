@@ -1,5 +1,5 @@
 <h1>
-  <img src="logo.svg" alt="CPT Menu Sync" width="72" align="center">
+  <img src="assets/images/logo.svg" alt="CPT Menu Sync" width="72" align="center">
   CPT Menu Sync
 </h1>
 
