@@ -2,6 +2,16 @@
 
 All notable changes to CPT Menu Sync will be documented in this file.
 
+## 0.1.1
+
+Minor admin usability and interface update.
+
+- Added AJAX-powered rule saving, manual syncing, and GitHub update checks with non-JavaScript fallbacks.
+- Added a simple How to use CPT Menu Sync accordion below Save Rules.
+- Updated admin header/logo styling and removed the Dashicon from the page title.
+- Updated the admin logo to the new CPT Menu Sync SVG artwork.
+- Made the plugin-row author and Visit plugin site links open in new tabs.
+
 ## 0.1.0
 
 Initial public plugin version.

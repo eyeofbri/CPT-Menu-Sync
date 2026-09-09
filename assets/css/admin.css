@@ -12,6 +12,8 @@
 .cptms-header h1 {
     margin: 0 0 4px;
     padding: 0;
+    font-weight: 700;
+    color: #2d435a;
 }
 
 .cptms-header p {
@@ -23,11 +25,14 @@
     width: 54px;
     height: 54px;
     border-radius: 12px;
-    background: #2271b1;
+    background: #fff;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
 
 .cptms-logo img {
@@ -37,10 +42,6 @@
     border-radius: 12px;
 }
 
-.cptms-title-icon {
-    margin-right: 8px;
-    vertical-align: -3px;
-}
 
 #adminmenu .wp-submenu .dashicons-share-alt {
     width: 14px;
@@ -281,4 +282,91 @@
 
 .cptms-repo-link {
     margin-top: 10px;
+}
+
+
+.cptms-howto {
+    margin-top: 18px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 6px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.cptms-howto summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 13px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #2d435a;
+}
+
+.cptms-howto summary::-webkit-details-marker {
+    display: none;
+}
+
+.cptms-howto summary::after {
+    content: "\f347";
+    font-family: dashicons;
+    margin-left: auto;
+    font-weight: 400;
+}
+
+.cptms-howto[open] summary::after {
+    content: "\f343";
+}
+
+.cptms-howto summary .dashicons {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+
+.cptms-howto-content {
+    padding: 0 18px 16px 42px;
+    border-top: 1px solid #f0f0f1;
+}
+
+.cptms-howto-content ol {
+    margin: 16px 0 12px 18px;
+}
+
+.cptms-howto-content li {
+    margin-bottom: 8px;
+}
+
+.cptms-howto-content p:last-child {
+    margin-bottom: 0;
+}
+
+.cptms-is-busy {
+    position: relative;
+    padding-right: 34px !important;
+    cursor: progress !important;
+}
+
+.cptms-is-busy::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    margin-top: -7px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: cptms-spin 0.7s linear infinite;
+}
+
+@keyframes cptms-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+#cptms-notice-area:empty {
+    display: none;
 }

@@ -1,7 +1,4 @@
-<h1>
-  <img src="assets/images/logo.svg" alt="CPT Menu Sync" width="72" align="center">
-  CPT Menu Sync
-</h1>
+# CPT Menu Sync
 
 **CPT Menu Sync** is a small WordPress plugin that keeps posts from a post type automatically synced into a normal WordPress navigation menu.
 
@@ -126,7 +123,7 @@ Save the rule.
 
 ## 5. Sync
 
-Saving your settings performs a sync automatically.
+Saving your settings performs a sync automatically. In v0.1.1 and later, saving and manual syncing happen in place without reloading the Tools page.
 
 You can also click **Sync Now** at any time.
 
@@ -359,7 +356,7 @@ and click:
 
 **Check for Updates**
 
-That forces a fresh GitHub check and refreshes WordPress's plugin update data.
+That forces a fresh GitHub check and refreshes WordPress's plugin update data without reloading the Tools page.
 
 ---
 
@@ -414,7 +411,7 @@ Most WordPress users do not need anything below this point.
 5. Create a GitHub Release with a matching tag, for example:
 
 ```text
-v0.1.1
+v0.1.2
 ```
 
 6. Publish it as a normal release, not a draft or prerelease.
@@ -489,9 +486,9 @@ The code is intentionally separated by responsibility:
 - `CPTMS_Plugin` — plugin initialization and dependency wiring
 - `CPTMS_Settings` — rule storage and validation
 - `CPTMS_Sync_Engine` — menu synchronization behavior
-- `CPTMS_Admin` — Tools page, rule editor, reports, and admin actions
+- `CPTMS_Admin` — Tools page, rule editor, reports, AJAX endpoints, and fallback admin actions
 - `CPTMS_Updater` — GitHub Releases / WordPress updater integration
-- `admin.js` — repeatable rules and parent-item dropdown behavior
+- `admin.js` — repeatable rules, parent-item dropdowns, and AJAX save/sync/update-check behavior
 
 ---
 
@@ -517,11 +514,21 @@ The plugin uses the WordPress Dashicon:
 dashicons-share-alt
 ```
 
-The included `assets/images/logo.svg` is a temporary project logo and can be replaced later without changing the synchronization engine.
+The included `assets/images/logo.svg` is the CPT Menu Sync project logo used on the Tools page.
 
 ---
 
 # Changelog
+
+## 0.1.1
+
+Minor admin usability update.
+
+- Added AJAX-powered **Save Rules**, **Sync Now**, and **Check for Updates** actions
+- Kept normal form-post fallbacks when JavaScript is unavailable
+- Added a simple how-to accordion beneath **Save Rules**
+- Updated the admin logo/header styling and project logo
+- Made the Plugins-page author and **Visit plugin site** links open in new tabs
 
 ## 0.1.0
 

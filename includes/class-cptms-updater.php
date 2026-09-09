@@ -111,7 +111,7 @@ final class CPTMS_Updater {
             'name'          => 'CPT Menu Sync',
             'slug'          => 'cpt-menu-sync',
             'version'       => $remote_version ? $remote_version : CPTMS_VERSION,
-            'author'        => '<a href="https://github.com/eyeofbri">Brian McLendon</a>',
+            'author'        => '<a href="https://github.com/eyeofbri" target="_blank" rel="noopener noreferrer">Brian McLendon</a>',
             'homepage'      => self::repository_url(),
             'requires'      => '6.0',
             'requires_php'  => '7.4',

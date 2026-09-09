@@ -2,7 +2,7 @@
 /**
  * CPT Menu Sync uninstall handler.
  *
- * Intentionally non-destructive for navigation/configuration data in v0.1.0.
+ * Intentionally non-destructive for navigation/configuration data.
  * Rule settings and menu items are retained so deleting the plugin cannot
  * unexpectedly alter a site's navigation. Only disposable updater state is
  * removed.

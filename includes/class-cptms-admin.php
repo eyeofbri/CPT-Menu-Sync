@@ -24,17 +24,26 @@ final class CPTMS_Admin {
     public function register_hooks() {
         add_action( 'admin_menu', array( $this, 'register_page' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+
+        // Non-JavaScript fallbacks.
         add_action( 'admin_post_cptms_save_rules', array( $this, 'handle_save' ) );
         add_action( 'admin_post_cptms_sync_now', array( $this, 'handle_sync_now' ) );
         add_action( 'admin_post_cptms_check_updates', array( $this, 'handle_check_updates' ) );
+
+        // AJAX-powered admin actions.
+        add_action( 'wp_ajax_cptms_save_rules', array( $this, 'ajax_save_rules' ) );
+        add_action( 'wp_ajax_cptms_sync_now', array( $this, 'ajax_sync_now' ) );
+        add_action( 'wp_ajax_cptms_check_updates', array( $this, 'ajax_check_updates' ) );
+
         add_filter( 'plugin_action_links_' . plugin_basename( CPTMS_FILE ), array( $this, 'plugin_action_links' ) );
+        add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 4 );
     }
 
     /**
      * Add page beneath WordPress Tools.
      *
      * WordPress does not provide a custom icon argument for Tools submenu
-     * pages, so dashicons-share-alt is used in the plugin page branding.
+     * pages, so dashicons-share-alt is used in the submenu label.
      */
     public function register_page() {
         add_management_page(
@@ -74,12 +83,13 @@ final class CPTMS_Admin {
             'cptms-admin',
             'CPTMS_DATA',
             array(
-                'menus'     => $this->get_menu_item_data(),
-                'ruleNonce' => wp_create_nonce( 'cptms_rule_ui' ),
-                'strings'   => array(
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'menus'   => $this->get_menu_item_data(),
+                'strings' => array(
                     'selectParent' => __( 'Select a parent item', 'cpt-menu-sync' ),
                     'noItems'      => __( 'This menu has no items.', 'cpt-menu-sync' ),
                     'removeRule'   => __( 'Remove rule', 'cpt-menu-sync' ),
+                    'requestError' => __( 'Something went wrong. Please try again.', 'cpt-menu-sync' ),
                 ),
             )
         );
@@ -95,6 +105,47 @@ final class CPTMS_Admin {
             '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Settings', 'cpt-menu-sync' ) . '</a>'
         );
         return $links;
+    }
+
+    /**
+     * Open the plugin author's "By" link and "Visit plugin site" link in
+     * new tabs without changing other plugins' row metadata.
+     */
+    public function plugin_row_meta( $plugin_meta, $plugin_file, $plugin_data, $status ) {
+        unset( $status );
+
+        if ( plugin_basename( CPTMS_FILE ) !== $plugin_file || ! is_array( $plugin_meta ) ) {
+            return $plugin_meta;
+        }
+
+        $author_uri = ! empty( $plugin_data['AuthorURI'] ) ? (string) $plugin_data['AuthorURI'] : '';
+        $plugin_uri = ! empty( $plugin_data['PluginURI'] ) ? (string) $plugin_data['PluginURI'] : '';
+
+        foreach ( $plugin_meta as $index => $meta ) {
+            if ( ! is_string( $meta ) || false === stripos( $meta, '<a ' ) ) {
+                continue;
+            }
+
+            $matches_author = $author_uri && false !== strpos( $meta, $author_uri );
+            $matches_plugin = $plugin_uri && false !== strpos( $meta, $plugin_uri );
+
+            if ( ! $matches_author && ! $matches_plugin ) {
+                continue;
+            }
+
+            if ( false === stripos( $meta, ' target=' ) ) {
+                $meta = preg_replace(
+                    '/<a\s+/i',
+                    '<a target="_blank" rel="noopener noreferrer" ',
+                    $meta,
+                    1
+                );
+            }
+
+            $plugin_meta[ $index ] = $meta;
+        }
+
+        return $plugin_meta;
     }
 
     /**
@@ -117,12 +168,14 @@ final class CPTMS_Admin {
                     <img src="<?php echo esc_url( CPTMS_URL . 'assets/images/logo.svg' ); ?>" alt="">
                 </div>
                 <div>
-                    <h1><span class="dashicons dashicons-share-alt cptms-title-icon" aria-hidden="true"></span><?php esc_html_e( 'CPT Menu Sync', 'cpt-menu-sync' ); ?></h1>
+                    <h1><?php esc_html_e( 'CPT Menu Sync', 'cpt-menu-sync' ); ?></h1>
                     <p><?php esc_html_e( 'Keep posts from any post type synchronized beneath selected parent items in classic WordPress menus.', 'cpt-menu-sync' ); ?></p>
                 </div>
             </div>
 
-            <?php $this->render_notice( $notice ); ?>
+            <div id="cptms-notice-area" aria-live="polite">
+                <?php $this->render_notice( $notice ); ?>
+            </div>
 
             <?php if ( empty( $menus ) ) : ?>
                 <div class="notice notice-warning inline">
@@ -160,9 +213,28 @@ final class CPTMS_Admin {
                         </div>
 
                         <div class="cptms-form-actions">
-                            <?php submit_button( __( 'Save Rules', 'cpt-menu-sync' ), 'primary', 'submit', false ); ?>
+                            <button type="submit" class="button button-primary" id="cptms-save-rules">
+                                <?php esc_html_e( 'Save Rules', 'cpt-menu-sync' ); ?>
+                            </button>
                         </div>
                     </form>
+
+                    <details class="cptms-howto">
+                        <summary>
+                            <span class="dashicons dashicons-editor-help" aria-hidden="true"></span>
+                            <?php esc_html_e( 'How to use CPT Menu Sync', 'cpt-menu-sync' ); ?>
+                        </summary>
+                        <div class="cptms-howto-content">
+                            <ol>
+                                <li><?php esc_html_e( 'Make sure the parent item you want to use already exists in a classic WordPress menu.', 'cpt-menu-sync' ); ?></li>
+                                <li><?php esc_html_e( 'Click Add Rule and choose the Post Type, Menu, and Parent Menu Item.', 'cpt-menu-sync' ); ?></li>
+                                <li><?php esc_html_e( 'Choose an order. Use Menu Order → Title if you use Post Types Order or another menu_order-based sorter.', 'cpt-menu-sync' ); ?></li>
+                                <li><?php esc_html_e( 'Leave Sync titles, Remove missing, and Adopt existing enabled for the usual automatic setup.', 'cpt-menu-sync' ); ?></li>
+                                <li><?php esc_html_e( 'Click Save Rules. The plugin saves the rule and immediately synchronizes the matching posts.', 'cpt-menu-sync' ); ?></li>
+                            </ol>
+                            <p><?php esc_html_e( 'Need to force a refresh later? Use Sync Now in the sidebar.', 'cpt-menu-sync' ); ?></p>
+                        </div>
+                    </details>
                 </main>
 
                 <aside class="cptms-sidebar">
@@ -170,7 +242,7 @@ final class CPTMS_Admin {
                         <h2><?php esc_html_e( 'Manual Sync', 'cpt-menu-sync' ); ?></h2>
                         <p><?php esc_html_e( 'Run all enabled rules immediately. Automatic syncing also occurs when matching posts or configured menus change.', 'cpt-menu-sync' ); ?></p>
 
-                        <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+                        <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" id="cptms-sync-form">
                             <input type="hidden" name="action" value="cptms_sync_now">
                             <?php wp_nonce_field( 'cptms_sync_now' ); ?>
                             <button type="submit" class="button button-secondary">
@@ -185,71 +257,11 @@ final class CPTMS_Admin {
                         <p><?php esc_html_e( '“Menu Order” uses WordPress’s native menu_order value, making it compatible with drag-and-drop post ordering plugins such as Post Types Order.', 'cpt-menu-sync' ); ?></p>
                     </div>
 
-                    <div class="cptms-panel cptms-updates">
+                    <div class="cptms-panel cptms-updates" id="cptms-update-panel">
                         <h2><?php esc_html_e( 'GitHub Updates', 'cpt-menu-sync' ); ?></h2>
-
-                        <?php if ( ! empty( $updates ) ) : ?>
-                            <dl class="cptms-update-status">
-                                <div>
-                                    <dt><?php esc_html_e( 'Installed', 'cpt-menu-sync' ); ?></dt>
-                                    <dd><?php echo esc_html( isset( $updates['installed_version'] ) ? $updates['installed_version'] : CPTMS_VERSION ); ?></dd>
-                                </div>
-                                <div>
-                                    <dt><?php esc_html_e( 'Latest', 'cpt-menu-sync' ); ?></dt>
-                                    <dd><?php echo esc_html( ! empty( $updates['latest_version'] ) ? $updates['latest_version'] : '—' ); ?></dd>
-                                </div>
-                                <div>
-                                    <dt><?php esc_html_e( 'Status', 'cpt-menu-sync' ); ?></dt>
-                                    <dd>
-                                        <?php
-                                        $connection = isset( $updates['connection'] ) ? $updates['connection'] : 'not_checked';
-                                        if ( ! empty( $updates['update_available'] ) ) {
-                                            esc_html_e( 'Update available', 'cpt-menu-sync' );
-                                        } elseif ( 'connected' === $connection ) {
-                                            esc_html_e( 'Up to date', 'cpt-menu-sync' );
-                                        } elseif ( 'not_configured' === $connection ) {
-                                            esc_html_e( 'Not configured', 'cpt-menu-sync' );
-                                        } elseif ( 'error' === $connection ) {
-                                            esc_html_e( 'Connection error', 'cpt-menu-sync' );
-                                        } else {
-                                            esc_html_e( 'Not checked', 'cpt-menu-sync' );
-                                        }
-                                        ?>
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt><?php esc_html_e( 'Last check', 'cpt-menu-sync' ); ?></dt>
-                                    <dd>
-                                        <?php
-                                        if ( ! empty( $updates['last_checked'] ) ) {
-                                            echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $updates['last_checked'] ) );
-                                        } else {
-                                            echo '—';
-                                        }
-                                        ?>
-                                    </dd>
-                                </div>
-                            </dl>
-
-                            <?php if ( ! empty( $updates['message'] ) ) : ?>
-                                <p class="description"><?php echo esc_html( $updates['message'] ); ?></p>
-                            <?php endif; ?>
-                        <?php endif; ?>
-
-                        <?php if ( current_user_can( 'update_plugins' ) ) : ?>
-                            <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
-                                <input type="hidden" name="action" value="cptms_check_updates">
-                                <?php wp_nonce_field( 'cptms_check_updates' ); ?>
-                                <button type="submit" class="button button-secondary">
-                                    <span class="dashicons dashicons-update" aria-hidden="true"></span>
-                                    <?php esc_html_e( 'Check for Updates', 'cpt-menu-sync' ); ?>
-                                </button>
-                            </form>
-                        <?php endif; ?>
-
-                        <?php if ( class_exists( 'CPTMS_Updater' ) ) : ?>
-                            <p class="cptms-repo-link"><a href="<?php echo esc_url( CPTMS_Updater::releases_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View GitHub Releases', 'cpt-menu-sync' ); ?></a></p>
-                        <?php endif; ?>
+                        <div id="cptms-update-content">
+                            <?php $this->render_update_content( $updates ); ?>
+                        </div>
                     </div>
 
                     <div class="cptms-panel cptms-about">
@@ -290,14 +302,101 @@ final class CPTMS_Admin {
 
     /**
      * Save rules and sync immediately so the saved configuration is live.
+     * Non-JavaScript fallback.
      */
     public function handle_save() {
-        if ( ! current_user_can( 'edit_theme_options' ) ) {
-            wp_die( esc_html__( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) );
-        }
-
+        $this->require_menu_capability();
         check_admin_referer( 'cptms_save_rules' );
 
+        $result = $this->save_rules_from_request();
+        $this->store_notice( $result['notice'] );
+        $this->redirect_to_page();
+    }
+
+    /**
+     * Run all enabled rules immediately. Non-JavaScript fallback.
+     */
+    public function handle_sync_now() {
+        $this->require_menu_capability();
+        check_admin_referer( 'cptms_sync_now' );
+
+        $notice = $this->sync_now();
+        $this->store_notice( $notice );
+        $this->redirect_to_page();
+    }
+
+    /**
+     * Force a fresh GitHub release check. Non-JavaScript fallback.
+     */
+    public function handle_check_updates() {
+        $this->require_update_capability();
+        check_admin_referer( 'cptms_check_updates' );
+
+        $result = $this->check_updates();
+        $this->store_notice( $result['notice'] );
+        $this->redirect_to_page();
+    }
+
+    /**
+     * AJAX: save rules and synchronize them without reloading the Tools page.
+     */
+    public function ajax_save_rules() {
+        if ( ! current_user_can( 'edit_theme_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) ), 403 );
+        }
+
+        check_ajax_referer( 'cptms_save_rules' );
+        $result = $this->save_rules_from_request();
+
+        wp_send_json_success(
+            array(
+                'notice_html' => $this->get_notice_html( $result['notice'] ),
+                'rules'       => $result['rules'],
+            )
+        );
+    }
+
+    /**
+     * AJAX: synchronize all enabled rules without reloading the Tools page.
+     */
+    public function ajax_sync_now() {
+        if ( ! current_user_can( 'edit_theme_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) ), 403 );
+        }
+
+        check_ajax_referer( 'cptms_sync_now' );
+        $notice = $this->sync_now();
+
+        wp_send_json_success(
+            array(
+                'notice_html' => $this->get_notice_html( $notice ),
+            )
+        );
+    }
+
+    /**
+     * AJAX: force a fresh GitHub release check and refresh diagnostics.
+     */
+    public function ajax_check_updates() {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            wp_send_json_error( array( 'message' => __( 'You do not have permission to update plugins.', 'cpt-menu-sync' ) ), 403 );
+        }
+
+        check_ajax_referer( 'cptms_check_updates' );
+        $result = $this->check_updates();
+
+        wp_send_json_success(
+            array(
+                'notice_html' => $this->get_notice_html( $result['notice'] ),
+                'panel_html'  => $this->get_update_content_html( $result['diagnostics'] ),
+            )
+        );
+    }
+
+    /**
+     * Save/sanitize rule configuration and perform an immediate sync.
+     */
+    private function save_rules_from_request() {
         $old_rules = CPTMS_Settings::get_rules();
         $raw_rules = isset( $_POST['rules'] ) ? wp_unslash( $_POST['rules'] ) : array();
         $rules     = CPTMS_Settings::sanitize_rules( $raw_rules );
@@ -306,52 +405,31 @@ final class CPTMS_Admin {
         CPTMS_Settings::save_rules( $rules );
         $report = $this->engine->sync_all();
 
-        $this->store_notice(
-            array(
+        return array(
+            'rules'  => $rules,
+            'notice' => array(
                 'type'    => 'success',
                 'message' => __( 'Rules saved and synchronized.', 'cpt-menu-sync' ),
                 'report'  => $report,
-            )
+            ),
         );
-
-        wp_safe_redirect( admin_url( 'tools.php?page=' . self::PAGE_SLUG ) );
-        exit;
     }
 
     /**
-     * Run all enabled rules immediately.
+     * Run all configured enabled rules and return a notice payload.
      */
-    public function handle_sync_now() {
-        if ( ! current_user_can( 'edit_theme_options' ) ) {
-            wp_die( esc_html__( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) );
-        }
-
-        check_admin_referer( 'cptms_sync_now' );
-
-        $report = $this->engine->sync_all();
-
-        $this->store_notice(
-            array(
-                'type'    => 'success',
-                'message' => __( 'Synchronization complete.', 'cpt-menu-sync' ),
-                'report'  => $report,
-            )
+    private function sync_now() {
+        return array(
+            'type'    => 'success',
+            'message' => __( 'Synchronization complete.', 'cpt-menu-sync' ),
+            'report'  => $this->engine->sync_all(),
         );
-
-        wp_safe_redirect( admin_url( 'tools.php?page=' . self::PAGE_SLUG ) );
-        exit;
     }
 
     /**
-     * Force a fresh GitHub release check.
+     * Force the updater to refresh and return diagnostics + notice payloads.
      */
-    public function handle_check_updates() {
-        if ( ! current_user_can( 'update_plugins' ) ) {
-            wp_die( esc_html__( 'You do not have permission to update plugins.', 'cpt-menu-sync' ) );
-        }
-
-        check_admin_referer( 'cptms_check_updates' );
-
+    private function check_updates() {
         $diagnostics = CPTMS_Updater::force_check();
 
         if ( ! empty( $diagnostics['update_available'] ) ) {
@@ -371,15 +449,13 @@ final class CPTMS_Admin {
             $type = 'error';
         }
 
-        $this->store_notice(
-            array(
+        return array(
+            'diagnostics' => $diagnostics,
+            'notice'      => array(
                 'type'    => $type,
                 'message' => $message,
-            )
+            ),
         );
-
-        wp_safe_redirect( admin_url( 'tools.php?page=' . self::PAGE_SLUG ) );
-        exit;
     }
 
     /**
@@ -389,7 +465,7 @@ final class CPTMS_Admin {
         $name_prefix = 'rules[' . $index . ']';
         ?>
         <section class="cptms-rule" data-rule-index="<?php echo esc_attr( $index ); ?>">
-            <input type="hidden" name="<?php echo esc_attr( $name_prefix ); ?>[id]" value="<?php echo esc_attr( $rule['id'] ); ?>">
+            <input type="hidden" class="cptms-rule-id" name="<?php echo esc_attr( $name_prefix ); ?>[id]" value="<?php echo esc_attr( $rule['id'] ); ?>">
 
             <div class="cptms-rule-header">
                 <div class="cptms-rule-title">
@@ -421,7 +497,7 @@ final class CPTMS_Admin {
                 <div class="cptms-field">
                     <label><?php esc_html_e( 'Menu', 'cpt-menu-sync' ); ?></label>
                     <select class="cptms-menu-select" name="<?php echo esc_attr( $name_prefix ); ?>[menu_id]" required>
-                        <option value="0"><?php esc_html_e( 'Select a menu', 'cpt-menu-sync' ); ?></option>
+                        <option value=""><?php esc_html_e( 'Select a menu', 'cpt-menu-sync' ); ?></option>
                         <?php foreach ( $menus as $menu ) : ?>
                             <option value="<?php echo esc_attr( $menu->term_id ); ?>" <?php selected( (int) $rule['menu_id'], (int) $menu->term_id ); ?>>
                                 <?php echo esc_html( $menu->name ); ?>
@@ -433,7 +509,7 @@ final class CPTMS_Admin {
                 <div class="cptms-field">
                     <label><?php esc_html_e( 'Parent Menu Item', 'cpt-menu-sync' ); ?></label>
                     <select class="cptms-parent-select" name="<?php echo esc_attr( $name_prefix ); ?>[parent_menu_item_id]" data-selected="<?php echo esc_attr( $rule['parent_menu_item_id'] ); ?>" required>
-                        <option value="0"><?php esc_html_e( 'Select a parent item', 'cpt-menu-sync' ); ?></option>
+                        <option value=""><?php esc_html_e( 'Select a parent item', 'cpt-menu-sync' ); ?></option>
                     </select>
                 </div>
 
@@ -467,6 +543,91 @@ final class CPTMS_Admin {
             </div>
         </section>
         <?php
+    }
+
+    /**
+     * Render current GitHub update diagnostics and controls.
+     */
+    private function render_update_content( $updates ) {
+        $updates = is_array( $updates ) ? $updates : array();
+
+        if ( ! empty( $updates ) ) :
+            ?>
+            <dl class="cptms-update-status">
+                <div>
+                    <dt><?php esc_html_e( 'Installed', 'cpt-menu-sync' ); ?></dt>
+                    <dd><?php echo esc_html( isset( $updates['installed_version'] ) ? $updates['installed_version'] : CPTMS_VERSION ); ?></dd>
+                </div>
+                <div>
+                    <dt><?php esc_html_e( 'Latest', 'cpt-menu-sync' ); ?></dt>
+                    <dd><?php echo esc_html( ! empty( $updates['latest_version'] ) ? $updates['latest_version'] : '—' ); ?></dd>
+                </div>
+                <div>
+                    <dt><?php esc_html_e( 'Status', 'cpt-menu-sync' ); ?></dt>
+                    <dd>
+                        <?php
+                        $connection = isset( $updates['connection'] ) ? $updates['connection'] : 'not_checked';
+                        if ( ! empty( $updates['update_available'] ) ) {
+                            esc_html_e( 'Update available', 'cpt-menu-sync' );
+                        } elseif ( 'connected' === $connection ) {
+                            esc_html_e( 'Up to date', 'cpt-menu-sync' );
+                        } elseif ( 'not_configured' === $connection ) {
+                            esc_html_e( 'Not configured', 'cpt-menu-sync' );
+                        } elseif ( 'error' === $connection ) {
+                            esc_html_e( 'Connection error', 'cpt-menu-sync' );
+                        } else {
+                            esc_html_e( 'Not checked', 'cpt-menu-sync' );
+                        }
+                        ?>
+                    </dd>
+                </div>
+                <div>
+                    <dt><?php esc_html_e( 'Last check', 'cpt-menu-sync' ); ?></dt>
+                    <dd>
+                        <?php
+                        if ( ! empty( $updates['last_checked'] ) ) {
+                            echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $updates['last_checked'] ) );
+                        } else {
+                            echo '—';
+                        }
+                        ?>
+                    </dd>
+                </div>
+            </dl>
+
+            <?php if ( ! empty( $updates['message'] ) ) : ?>
+                <p class="description"><?php echo esc_html( $updates['message'] ); ?></p>
+            <?php endif; ?>
+            <?php
+        endif;
+
+        if ( current_user_can( 'update_plugins' ) ) :
+            ?>
+            <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" id="cptms-update-form">
+                <input type="hidden" name="action" value="cptms_check_updates">
+                <?php wp_nonce_field( 'cptms_check_updates' ); ?>
+                <button type="submit" class="button button-secondary">
+                    <span class="dashicons dashicons-update" aria-hidden="true"></span>
+                    <?php esc_html_e( 'Check for Updates', 'cpt-menu-sync' ); ?>
+                </button>
+            </form>
+            <?php
+        endif;
+
+        if ( class_exists( 'CPTMS_Updater' ) ) :
+            ?>
+            <p class="cptms-repo-link"><a href="<?php echo esc_url( CPTMS_Updater::releases_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View GitHub Releases', 'cpt-menu-sync' ); ?></a></p>
+            <?php
+        endif;
+    }
+
+    /**
+     * Capture the update panel body for an AJAX response.
+     */
+    private function get_update_content_html( $updates ) {
+        ob_start();
+        $this->render_update_content( $updates );
+        return (string) ob_get_clean();
     }
 
     /**
@@ -537,6 +698,29 @@ final class CPTMS_Admin {
     }
 
     /**
+     * Capability helpers for non-AJAX fallback handlers.
+     */
+    private function require_menu_capability() {
+        if ( ! current_user_can( 'edit_theme_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to manage navigation menus.', 'cpt-menu-sync' ) );
+        }
+    }
+
+    private function require_update_capability() {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            wp_die( esc_html__( 'You do not have permission to update plugins.', 'cpt-menu-sync' ) );
+        }
+    }
+
+    /**
+     * Return to the Tools page after a non-JavaScript action.
+     */
+    private function redirect_to_page() {
+        wp_safe_redirect( admin_url( 'tools.php?page=' . self::PAGE_SLUG ) );
+        exit;
+    }
+
+    /**
      * Store a one-use admin notice for the current user.
      */
     private function store_notice( array $notice ) {
@@ -554,6 +738,15 @@ final class CPTMS_Admin {
     }
 
     /**
+     * Capture a notice for an AJAX response.
+     */
+    private function get_notice_html( $notice ) {
+        ob_start();
+        $this->render_notice( $notice );
+        return (string) ob_get_clean();
+    }
+
+    /**
      * Render save/sync status and optional per-rule report.
      */
     private function render_notice( $notice ) {
@@ -561,7 +754,7 @@ final class CPTMS_Admin {
             return;
         }
 
-        $class = 'error' === ( $notice['type'] ?? '' ) ? 'notice-error' : 'notice-success';
+        $class = 'error' === ( isset( $notice['type'] ) ? $notice['type'] : '' ) ? 'notice-error' : 'notice-success';
         ?>
         <div class="notice <?php echo esc_attr( $class ); ?> is-dismissible cptms-notice">
             <p><strong><?php echo esc_html( $notice['message'] ); ?></strong></p>

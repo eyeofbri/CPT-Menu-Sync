@@ -3,7 +3,7 @@
  * Plugin Name:       CPT Menu Sync
  * Plugin URI:         https://github.com/eyeofbri/CPT-Menu-Sync
  * Description:       Automatically sync posts from any WordPress post type beneath selected parent items in classic navigation menus.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Brian McLendon
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'CPTMS_VERSION', '0.1.0' );
+define( 'CPTMS_VERSION', '0.1.1' );
 define( 'CPTMS_FILE', __FILE__ );
 define( 'CPTMS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CPTMS_URL', plugin_dir_url( __FILE__ ) );
