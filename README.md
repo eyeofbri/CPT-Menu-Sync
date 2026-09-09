@@ -1,4 +1,7 @@
-# CPT Menu Sync
+<h1>
+  <img src="logo.svg" alt="CPT Menu Sync" width="72" align="center">
+  CPT Menu Sync
+</h1>
 
 **CPT Menu Sync** is a small WordPress plugin that keeps posts from a post type automatically synced into a normal WordPress navigation menu.
 
