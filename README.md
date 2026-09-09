@@ -1,92 +1,17 @@
 # CPT Menu Sync
 
-**CPT Menu Sync** is a small, reusable WordPress plugin that automatically keeps posts from any manageable post type synchronized beneath a selected parent item in a classic WordPress navigation menu.
+**CPT Menu Sync** is a small WordPress plugin that keeps posts from a post type automatically synced into a normal WordPress navigation menu.
 
-It is designed for sites where a section such as **Services**, **Locations**, **Team**, **Resources**, or another custom post type should automatically populate a menu without requiring editors to manually add or remove menu items every time content changes.
+If you found this because you were searching for something like:
 
-## Author
+- "automatically add custom post type posts to a WordPress menu"
+- "sync CPT posts to a menu in WordPress"
+- "keep Services posts updated in the main menu"
+- "use Post Types Order for WordPress menu items"
 
-**Brian McLendon**  
-GitHub: https://github.com/eyeofbri
+...this plugin is meant to solve exactly that problem without making you manually update the menu every time a post is added, renamed, unpublished, or reordered.
 
-Repository: https://github.com/eyeofbri/CPT-Menu-Sync
-
-## License
-
-MIT License. See [`LICENSE`](LICENSE).
-
-## Current Version
-
-`0.1.0`
-
-## Features
-
-- Admin interface under **Tools → CPT Menu Sync**
-- Multiple independent sync rules
-- Multiple custom post types
-- The same post type can be synced into multiple menus by creating multiple rules
-- Select an existing WordPress navigation menu
-- Select any existing menu item as the parent
-- Automatically add newly published posts
-- Automatically update existing managed menu items
-- Optionally keep menu labels synchronized to post titles
-- Optionally remove menu items when posts are unpublished, trashed, deleted, or otherwise no longer eligible
-- Optionally adopt matching menu items that were manually added before the plugin was installed
-- Avoid duplicate generated items
-- Manual **Sync Now** action
-- Sync report showing matched, added, updated, and removed items
-- Event-driven synchronization rather than rebuilding menus on every frontend request
-- Compatible with WordPress `menu_order`
-- Compatible with drag-and-drop ordering plugins such as **Post Types Order** when the **Menu Order** sort mode is selected
-- Managed menu items are tagged with private post meta so unrelated menu items are not removed
-- GitHub Releases integration for normal WordPress plugin updates
-- Built-in update diagnostics and **Check for Updates** action
-
-## Requirements
-
-- WordPress 6.0+
-- PHP 7.4+
-- A site using classic WordPress navigation menus
-- Permission to manage WordPress menus
-
-> Block-theme Navigation blocks use a different storage system and are not managed by this version.
-
-## Installation
-
-1. Download or clone the `cpt-menu-sync` folder.
-2. Place it in:
-
-```text
-/wp-content/plugins/cpt-menu-sync/
-```
-
-3. Activate **CPT Menu Sync** from **Plugins** in WordPress.
-4. Go to **Tools → CPT Menu Sync**.
-
-## Creating a Sync Rule
-
-Each rule connects:
-
-```text
-Post Type → WordPress Menu → Parent Menu Item
-```
-
-For example:
-
-```text
-Services → 2024 Main Menu → Services
-```
-
-If the `services` post type contains:
-
-```text
-Commercial Cleaning
-Grease Trap Services
-Landscaping
-Waste Management
-```
-
-CPT Menu Sync can maintain:
+A common example is a site with a **Services** custom post type. You may already have a menu item called **Services** and want every published Service to appear below it automatically:
 
 ```text
 Home
@@ -99,80 +24,153 @@ Services
 Contact
 ```
 
-The generated children are normal WordPress post-type menu items, not custom URLs.
+CPT Menu Sync creates those child links as normal WordPress menu items and keeps them in sync for you.
 
-## Rule Options
+## What It Does
 
-### Enabled
+You create a simple rule that says:
 
-Controls whether the rule is currently active.
+```text
+Post Type → Menu → Parent Menu Item
+```
 
-Disabled rules remain saved but are ignored by automatic and manual synchronization.
+For example:
 
-### Post Type
+```text
+Services → Main Menu → Services
+```
 
-Select the WordPress post type whose published posts should be synchronized.
+After that, CPT Menu Sync can automatically:
 
-The plugin supports custom post types as well as other manageable WordPress post types exposed in the admin UI.
+- add newly published posts to the menu
+- update menu labels when post titles change
+- remove managed menu items when a post is unpublished or deleted
+- keep menu items in the same order as your CPT posts
+- work with multiple post types and multiple menus
+- avoid adding duplicate menu items
 
-### Menu
+The plugin runs when relevant content changes. It does **not** rebuild your menus on every frontend page load.
 
-Select the classic WordPress navigation menu that should receive the synchronized items.
+---
 
-### Parent Menu Item
+# Quick Start
 
-Select the existing menu item that should contain the synchronized posts.
+## 1. Install the Plugin
 
-The parent is stored by its WordPress navigation menu item ID, so changing its displayed label later does not break the rule.
+Install and activate **CPT Menu Sync** like a normal WordPress plugin.
 
-### Order
+If you downloaded a ZIP:
 
-Available ordering modes include:
+1. Go to **Plugins → Add Plugin** in WordPress.
+2. Click **Upload Plugin**.
+3. Choose the CPT Menu Sync ZIP file.
+4. Install and activate it.
 
-- **Menu Order → Title**
-- **Title A–Z**
-- **Title Z–A**
-- **Newest first**
-- **Oldest first**
+If you are installing the files manually, place the plugin in:
 
-#### Post Types Order Compatibility
+```text
+/wp-content/plugins/cpt-menu-sync/
+```
 
-The **Menu Order → Title** option uses WordPress's native `menu_order` field.
+Then activate **CPT Menu Sync** from the WordPress Plugins screen.
 
-This is compatible with plugins such as **Post Types Order**, which store their drag-and-drop order in that field.
+## 2. Make Sure Your Parent Menu Item Already Exists
 
-If multiple posts have the same `menu_order`, their titles are used as a secondary alphabetical sort.
+CPT Menu Sync adds posts **under an existing menu item**.
 
-The plugin applies the resulting order to the actual managed navigation menu items, so it is not limited to merely retrieving the posts in the correct order.
+For example, if you want your Service posts to appear under **Services**, first make sure your WordPress menu already contains a Services item:
 
-### Sync Titles
+```text
+Home
+About
+Services
+Contact
+```
 
-When enabled, changing a post title also changes the corresponding managed menu label.
+You can create or edit classic WordPress menus from the normal WordPress menu editor used by your site.
 
-When disabled, an existing customized menu label is preserved.
+## 3. Open CPT Menu Sync
 
-### Remove Missing
+In WordPress admin, go to:
 
-When enabled, CPT Menu Sync removes a menu item it manages when the source post is no longer included, including when a post is:
+**Tools → CPT Menu Sync**
 
-- unpublished
-- changed to draft
-- trashed
-- deleted
+## 4. Add a Sync Rule
 
-Only menu items tagged as managed by the applicable sync rule are removed.
+Choose:
 
-### Adopt Existing
+- **Post Type** — the content you want to add, such as Services
+- **Menu** — the WordPress navigation menu to update
+- **Parent Menu Item** — the existing item those posts should appear beneath
+- **Order** — how those posts should be arranged
 
-When enabled, the plugin will use a matching manually-added post-type menu item rather than creating a duplicate.
+For a typical Services setup:
 
-After adoption, the menu item is tagged as belonging to that sync rule.
+```text
+Post Type: Services
+Menu: Main Menu
+Parent Item: Services
+Order: Menu Order → Title
+```
 
-## Multiple CPTs
+Leave the normal options enabled unless you have a reason to change them:
 
-Create as many rules as needed.
+- **Sync Titles** — keeps menu labels matched to post titles
+- **Remove Missing** — removes managed menu links if the source post is unpublished/deleted
+- **Adopt Existing** — uses an existing matching menu item instead of creating a duplicate
 
-Example:
+Save the rule.
+
+## 5. Sync
+
+Saving your settings performs a sync automatically.
+
+You can also click **Sync Now** at any time.
+
+You will see a simple report such as:
+
+```text
+Matched 12 · Added 2 · Updated 10 · Removed 0
+```
+
+That's it. From then on, the plugin keeps the selected posts and menu in sync.
+
+---
+
+# Using Post Types Order
+
+CPT Menu Sync works with the popular **Post Types Order** plugin and other setups that use WordPress's built-in `menu_order` value.
+
+If you drag your Services into a custom order with Post Types Order, choose:
+
+**Menu Order → Title**
+
+in CPT Menu Sync.
+
+The menu children will then follow that order.
+
+For example, if your Services are arranged as:
+
+```text
+Waste Management
+Janitorial Services
+Landscaping
+Grease Trap Services
+```
+
+CPT Menu Sync will use the same sequence beneath the selected parent menu item.
+
+If two posts happen to have the same `menu_order`, their titles are used as a secondary alphabetical sort.
+
+If you do not use Post Types Order, you can simply choose **Title A–Z** instead.
+
+---
+
+# Multiple Post Types
+
+You are not limited to one CPT.
+
+Create as many sync rules as you need:
 
 ```text
 Services  → Main Menu   → Services
@@ -181,13 +179,11 @@ Team      → About Menu  → Our Team
 Resources → Footer Menu → Resources
 ```
 
-The synchronization engine is not tied to any specific custom post type name.
+Each rule works independently.
 
-## One CPT in Multiple Menus
+# One Post Type in Multiple Menus
 
-Create multiple rules using the same post type.
-
-Example:
+You can also use the same post type in more than one menu:
 
 ```text
 Services → Main Menu   → Services
@@ -195,19 +191,162 @@ Services → Mobile Menu → Services
 Services → Footer Menu → Our Services
 ```
 
-Each rule is independent and receives its own permanent rule ID.
+Just create a separate rule for each menu.
 
-## Automatic Synchronization
+---
 
-The plugin queues an appropriate rule when a matching post is saved or its publication status changes.
+# Rule Options Explained
 
-It also reacts when a configured classic navigation menu is updated.
+## Enabled
 
-Queued work runs once near the end of the current WordPress request, preventing multiple save/status hooks from needlessly running the same rule repeatedly.
+Turns a rule on or off without deleting it.
 
-The plugin does **not** rebuild menus on ordinary frontend page loads.
+## Post Type
 
-## Manual Synchronization
+The WordPress post type whose posts should be added to the menu.
+
+This can be a custom post type such as:
+
+- Services
+- Locations
+- Team
+- Resources
+- Products
+
+or another manageable post type available on the site.
+
+## Menu
+
+The classic WordPress navigation menu that CPT Menu Sync should update.
+
+## Parent Menu Item
+
+The existing menu item that should contain the synchronized posts.
+
+The plugin stores the actual WordPress menu-item ID, so renaming the parent later does not normally break the rule.
+
+## Order
+
+Available sorting options include:
+
+- **Menu Order → Title**
+- **Title A–Z**
+- **Title Z–A**
+- **Newest first**
+- **Oldest first**
+
+Use **Menu Order → Title** if your CPT supports manual ordering or you use Post Types Order.
+
+## Sync Titles
+
+When enabled, the menu label follows the post title.
+
+If you rename:
+
+```text
+Commercial Cleaning
+```
+
+to:
+
+```text
+Commercial & Industrial Cleaning
+```
+
+the managed menu item will also update.
+
+Disable this option if you intentionally use custom menu labels.
+
+## Remove Missing
+
+When enabled, a managed menu item is removed if its source post no longer belongs in the rule—for example if the post is drafted, trashed, deleted, or unpublished.
+
+CPT Menu Sync only removes menu items it knows it manages. It does not blindly delete unrelated menu links.
+
+## Adopt Existing
+
+If the post is already in the selected menu, CPT Menu Sync can adopt that menu item instead of creating another copy.
+
+This is useful when setting up the plugin on a site that already has some CPT links added manually.
+
+---
+
+# What Happens When I Edit a Post?
+
+CPT Menu Sync listens for changes to the post types used by your rules.
+
+It can resync when a relevant post is:
+
+- created
+- edited
+- published
+- drafted
+- trashed
+- restored
+- deleted/unpublished
+
+It also reacts when a configured classic WordPress menu is edited.
+
+The plugin queues the work so the same rule is not repeatedly run by several WordPress save hooks during one request.
+
+It does **not** add extra synchronization work to normal visitor page loads.
+
+---
+
+# What Happens If I Delete a Rule?
+
+Deleting or changing a rule does not automatically wipe its old links out of your navigation.
+
+Instead, CPT Menu Sync releases those old items from plugin management and leaves them in the menu as normal WordPress menu items.
+
+This is intentional. Changing a plugin setting should not unexpectedly destroy a site's navigation.
+
+---
+
+# Troubleshooting
+
+## My posts are not appearing
+
+Check these first:
+
+1. Make sure the posts are **Published**.
+2. Make sure the rule is **Enabled**.
+3. Confirm that the correct **Post Type** is selected.
+4. Confirm that the correct **Menu** is selected.
+5. Confirm that the selected **Parent Menu Item** still exists.
+6. Click **Sync Now** and review the sync report.
+
+## The order is wrong
+
+If you use Post Types Order or manually arrange your CPT posts, choose:
+
+**Menu Order → Title**
+
+If you just want alphabetical ordering, choose:
+
+**Title A–Z**
+
+Then click **Sync Now**.
+
+## I already added some of these posts to the menu manually
+
+Enable **Adopt Existing**.
+
+CPT Menu Sync will try to use matching post-type menu items rather than adding duplicates.
+
+## I renamed the Services menu item
+
+That should be fine after the rule has been saved. CPT Menu Sync stores the selected parent by its menu-item ID rather than relying only on the visible title.
+
+## I don't see my menu in the dropdown
+
+This version works with **classic WordPress navigation menus**.
+
+WordPress block-theme Navigation blocks use a different storage system and are not managed by this version.
+
+## I don't see an update immediately after a GitHub release
+
+GitHub release information is cached for up to one hour.
 
 Go to:
 
@@ -215,56 +354,59 @@ Go to:
 
 and click:
 
-**Sync Now**
+**Check for Updates**
 
-A report will show the result of each enabled rule, including:
+That forces a fresh GitHub check and refreshes WordPress's plugin update data.
 
-```text
-Matched 12 · Added 2 · Updated 10 · Removed 0
-```
+---
 
-Saving the rule configuration also performs an immediate synchronization.
+# Requirements
 
-If a rule is removed or retargeted to another post type, menu, or parent, its old menu items are **released** rather than deleted: CPT Menu Sync removes its ownership metadata and leaves those entries in place as normal manual menu items. This avoids destructive navigation changes when configuration is edited.
+- WordPress 6.0+
+- PHP 7.4+
+- A site using classic WordPress navigation menus
+- Permission to manage WordPress menus
 
-## Managed Item Metadata
+> **Block themes:** WordPress Navigation blocks use a different menu system. CPT Menu Sync currently manages classic WordPress navigation menus only.
 
-Generated or adopted menu items are tagged with:
+---
 
-```text
-_cptms_rule_id
-```
+# GitHub Updates
 
-The value is the UUID of the rule that manages the item.
-
-This allows the synchronization engine to distinguish its own items from unrelated menu entries.
-
-## GitHub Updates
-
-CPT Menu Sync can update directly from normal GitHub Releases in:
+CPT Menu Sync can update through normal WordPress plugin updates using releases from:
 
 ```text
-eyeofbri/CPT-Menu-Sync
+https://github.com/eyeofbri/CPT-Menu-Sync
 ```
 
-The updater integrates with WordPress's standard plugin updater, so a newer GitHub Release can appear on the normal **Plugins** and **Updates** screens.
+When a newer normal GitHub Release is available, WordPress can show it on the standard **Plugins** and **Updates** screens.
 
-The **Tools → CPT Menu Sync** page also shows:
+You can also go to:
+
+**Tools → CPT Menu Sync**
+
+for update information including:
 
 - installed version
-- latest normal GitHub Release
+- latest release version
 - GitHub connection status
-- last GitHub check
+- last update check
 - whether an update is available
-- a **Check for Updates** button
+- **Check for Updates**
 
-Automatic GitHub release metadata is cached for up to one hour. **Check for Updates** clears that cache and WordPress's plugin-update transient before requesting the latest release again.
+The updater uses GitHub's automatically generated source ZIP, so release ZIP files do not need to be manually attached to every GitHub Release.
 
-### Release Workflow
+---
+
+# For Developers / Repository Setup
+
+Most WordPress users do not need anything below this point.
+
+## Release Workflow
 
 1. Update the plugin version in `cpt-menu-sync.php`.
 2. Update `CPTMS_VERSION` to the same version.
-3. Update `changelog.md` and the README changelog.
+3. Update `changelog.md` and this README.
 4. Commit and push the version to GitHub.
 5. Create a GitHub Release with a matching tag, for example:
 
@@ -272,19 +414,21 @@ Automatic GitHub release metadata is cached for up to one hour. **Check for Upda
 v0.1.1
 ```
 
-6. Publish it as a normal release — not a draft and not a prerelease.
+6. Publish it as a normal release, not a draft or prerelease.
 
-No manually uploaded release ZIP is required. The updater uses GitHub's automatically generated source ZIP for the release. During the WordPress upgrade process, CPT Menu Sync normalizes GitHub's generated repository folder back to:
+No manually uploaded release ZIP is required. The updater uses GitHub's generated source ZIP.
+
+During a WordPress update, the plugin normalizes GitHub's generated source directory back to:
 
 ```text
 cpt-menu-sync/
 ```
 
-This prevents WordPress from installing a second copy of the plugin beside the existing one.
+This prevents WordPress from installing the update as a second copy of the plugin.
 
-### Repository Layout Requirement
+## Repository Layout
 
-The GitHub repository root should be the plugin root itself. In other words, `cpt-menu-sync.php` should live directly at the repository root:
+The repository root should also be the plugin root:
 
 ```text
 CPT-Menu-Sync/
@@ -297,9 +441,9 @@ CPT-Menu-Sync/
 └── includes/
 ```
 
-Do **not** put another `cpt-menu-sync/` wrapper folder inside the repository. GitHub creates its own temporary wrapper directory in source archives, and the updater handles that automatically.
+Do not place another `cpt-menu-sync/` wrapper directory inside the repository.
 
-### Repository Configuration
+## Repository Configuration
 
 The repository used for updates is defined in `cpt-menu-sync.php`:
 
@@ -307,9 +451,11 @@ The repository used for updates is defined in `cpt-menu-sync.php`:
 define( 'CPTMS_GITHUB_REPOSITORY', 'eyeofbri/CPT-Menu-Sync' );
 ```
 
-If the repository is renamed, update this constant before publishing the next version.
+If the repository is renamed, update this constant before publishing the next release.
 
-## File Structure
+---
+
+# Plugin Structure
 
 ```text
 cpt-menu-sync/
@@ -334,41 +480,33 @@ cpt-menu-sync/
     └── class-cptms-updater.php
 ```
 
-## Architecture
+The code is intentionally separated by responsibility:
 
-The plugin is deliberately split into small responsibilities.
+- `cpt-menu-sync.php` — plugin bootstrap and constants
+- `CPTMS_Plugin` — plugin initialization and dependency wiring
+- `CPTMS_Settings` — rule storage and validation
+- `CPTMS_Sync_Engine` — menu synchronization behavior
+- `CPTMS_Admin` — Tools page, rule editor, reports, and admin actions
+- `CPTMS_Updater` — GitHub Releases / WordPress updater integration
+- `admin.js` — repeatable rules and parent-item dropdown behavior
 
-### `cpt-menu-sync.php`
+---
 
-Plugin bootstrap, constants, file loading, and activation registration.
+# Managed Menu Item Data
 
-### `CPTMS_Plugin`
+CPT Menu Sync marks generated or adopted menu items with private post meta:
 
-Dependency wiring and plugin initialization.
+```text
+_cptms_rule_id
+```
 
-### `CPTMS_Settings`
+The value is the unique ID of the rule managing that menu item.
 
-Rule storage, validation, and sanitization.
+This is how the plugin can tell its own managed items apart from unrelated menu links.
 
-### `CPTMS_Sync_Engine`
+---
 
-All menu synchronization behavior. It has no admin-page rendering responsibilities.
-
-### `CPTMS_Admin`
-
-Tools page, rule editor, notices, asset loading, settings submission, manual synchronization, and update-status controls.
-
-### `CPTMS_Updater`
-
-GitHub Releases integration, WordPress update-transient integration, plugin information, release caching/diagnostics, forced update checks, and GitHub source-directory normalization.
-
-### `admin.js`
-
-Handles repeatable rule cards and dynamically populates parent-menu-item choices after a menu is selected.
-
-This separation is intentional so future additions can be implemented without turning the main plugin file into a large all-purpose script.
-
-## Admin Icon
+# Admin Branding
 
 The plugin uses the WordPress Dashicon:
 
@@ -376,67 +514,62 @@ The plugin uses the WordPress Dashicon:
 dashicons-share-alt
 ```
 
-WordPress does not provide a dedicated icon argument for individual submenu pages under **Tools**, so the Tools entry includes the requested Dashicon in its menu label and the page heading uses the same `dashicons-share-alt` icon.
+The included `assets/images/logo.svg` is a temporary project logo and can be replaced later without changing the synchronization engine.
 
-The included `assets/images/logo.svg` is a temporary project logo displayed on the admin page and can be replaced later without changing the synchronization engine.
+---
 
-## Notes About Menu Ordering
+# Changelog
 
-Classic WordPress menu ordering is global across all items in a menu, even though the UI displays parent/child nesting.
+## 0.1.0
 
-CPT Menu Sync reorders the menu slots occupied by items managed by a rule while preserving the relative ordering of unrelated menu items. This lets managed CPT children follow the selected content order without unnecessarily taking ownership of the rest of the navigation menu.
+First public-ready release.
 
-## Uninstall Behavior
-
-Version `0.1.0` intentionally does not delete menu items or rule data automatically when the plugin is deactivated.
-
-This prevents an accidental plugin deactivation from destructively altering site navigation.
-
-Future versions may add an explicit cleanup/uninstall option if needed.
-
-## Development Principles
-
-CPT Menu Sync is intended to remain narrowly focused:
-
-> Keep post-type content synchronized with classic WordPress navigation menus.
-
-Features that fit this scope can be added without turning the plugin into a general-purpose menu builder.
-
-Potential future additions could include:
-
-- taxonomy filters
-- post include/exclude controls
-- ordering by a selected custom field
-- per-rule manual menu-label templates
-- duplicate-rule helpers
-- export/import of rules
-- WP-CLI synchronization command
-
-## Changelog
-
-### 0.1.0
-
-Initial plugin version.
-
-- Added modular sync engine
-- Added Tools admin page
+- Added modular CPT-to-menu sync engine
+- Added **Tools → CPT Menu Sync** admin page
 - Added repeatable sync rules
-- Added multiple-CPT support
+- Added support for multiple CPTs and menus
 - Added menu and parent-item selectors
-- Added WordPress `menu_order` / Post Types Order compatible sorting
-- Added alphabetical and date sorting
-- Added event-driven synchronization
-- Added manual Sync Now action and report
-- Added title synchronization
+- Added `menu_order` / Post Types Order compatible sorting
+- Added alphabetical and date sorting modes
+- Added automatic event-driven synchronization
+- Added manual **Sync Now** and sync reports
+- Added optional title synchronization
 - Added stale-item removal
 - Added adoption of existing menu items
-- Added managed-item metadata tagging
+- Added managed-item ownership metadata
 - Added temporary admin branding and `dashicons-share-alt`
-- Added GitHub Releases updater compatible with WordPress plugin updates
-- Added automatic GitHub source-ZIP folder normalization
-- Added GitHub update diagnostics and Check for Updates control
-- Added GitHub-ready repository metadata and release workflow
+- Added GitHub Releases updater for normal WordPress plugin updates
+- Added GitHub source-folder normalization during updates
+- Added update diagnostics and **Check for Updates**
 
-## License
+## 0.0.2
 
-MIT License.
+Expanded the prototype into a reusable rule-based plugin.
+
+- Added multiple synchronization rules
+- Added support for multiple CPTs and menus
+- Added Post Types Order compatible sorting
+- Added safer ownership and adoption behavior
+- Added expanded admin controls
+
+## 0.0.1
+
+Initial working prototype.
+
+- Added basic CPT-to-menu synchronization
+- Added parent menu selection
+- Added alphabetical ordering
+- Added manual sync controls
+
+---
+
+# Author
+
+**Brian McLendon**  
+GitHub: https://github.com/eyeofbri
+
+Repository: https://github.com/eyeofbri/CPT-Menu-Sync
+
+# License
+
+MIT License. See [`LICENSE`](LICENSE).
