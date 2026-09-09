@@ -1,29 +1,22 @@
 # Changelog
 
-## 0.0.2
+All notable changes to CPT Menu Sync will be documented in this file.
 
-Rule-system / reusable plugin milestone.
+## 0.1.0
 
-- Expanded the original prototype from one configuration to multiple sync rules.
-- Added support for multiple post types and menus.
-- Added dependent menu-parent selection.
-- Added Menu Order, alphabetical, and date sort modes.
-- Added compatibility with the native `menu_order` field used by Post Types Order.
-- Added actual managed-menu reordering to match the selected source order.
-- Added Sync Titles, Remove Missing, and Adopt Existing options.
-- Added per-rule UUID ownership metadata.
-- Added safer release behavior when rules are deleted or retargeted.
-- Added one-time migration of the v0.0.1 single-rule configuration.
-- Added synchronization when configured menus change.
-- Improved Tools → CPT Menu Sync UI and sync reporting.
+Initial public plugin version.
 
-## 0.0.1
-
-Initial functional prototype.
-
-- Added one configurable post-type-to-menu-parent synchronization.
-- Added automatic synchronization on matching post changes.
-- Added manual Sync Now.
-- Added alphabetical post ordering.
-- Added basic managed-item cleanup.
-- Added the initial Tools → CPT Menu Sync screen.
+- Added modular sync engine.
+- Added Tools → CPT Menu Sync admin interface.
+- Added repeatable rules supporting multiple post types, menus, and parent items.
+- Added WordPress `menu_order` / Post Types Order compatible ordering.
+- Added alphabetical and date-based ordering options.
+- Added event-driven synchronization and manual Sync Now reporting.
+- Added title synchronization, stale-item removal, and existing-item adoption.
+- Added private ownership metadata for managed menu items.
+- Added safe release behavior when a rule is removed or retargeted.
+- Added temporary admin logo and `dashicons-share-alt` branding.
+- Added GitHub Releases updater integrated with the standard WordPress plugin updater.
+- Added one-hour GitHub release caching, diagnostics, and a Check for Updates control.
+- Added automatic normalization of GitHub source archive directories to `cpt-menu-sync/`.
+- Added GitHub-ready repository documentation and release workflow.

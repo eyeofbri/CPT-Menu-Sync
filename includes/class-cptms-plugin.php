@@ -39,11 +39,10 @@ final class CPTMS_Plugin {
     }
 
     private function __construct() {
-        CPTMS_Settings::maybe_migrate_legacy_rule();
-
         $this->engine = new CPTMS_Sync_Engine();
         $this->engine->register_hooks();
 
+        CPTMS_Updater::init();
 
         if ( is_admin() ) {
             $this->admin = new CPTMS_Admin( $this->engine );

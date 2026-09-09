@@ -259,3 +259,26 @@
     }
 }
 
+.cptms-update-status {
+    margin: 0 0 12px;
+}
+
+.cptms-update-status > div {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.cptms-update-status dt {
+    font-weight: 600;
+}
+
+.cptms-update-status dd {
+    margin: 0;
+}
+
+.cptms-repo-link {
+    margin-top: 10px;
+}

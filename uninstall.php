@@ -2,12 +2,15 @@
 /**
  * CPT Menu Sync uninstall handler.
  *
- * v0.0.2 intentionally leaves rule settings and navigation menu items intact.
- * Removing the plugin should not unexpectedly alter a site's navigation.
+ * Intentionally non-destructive for navigation/configuration data in v0.1.0.
+ * Rule settings and menu items are retained so deleting the plugin cannot
+ * unexpectedly alter a site's navigation. Only disposable updater state is
+ * removed.
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
     exit;
 }
 
-// Intentionally non-destructive.
+delete_site_transient( 'cptms_github_latest_release' );
+delete_site_option( 'cptms_github_update_status' );

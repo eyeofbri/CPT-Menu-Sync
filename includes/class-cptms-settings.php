@@ -11,58 +11,6 @@ final class CPTMS_Settings {
 
     const OPTION_KEY = 'cptms_rules';
 
-
-    /**
-     * Migrate the original v0.0.1 single-rule option into the rule collection.
-     *
-     * This runs only when no v0.0.2 rules have been stored yet.
-     */
-    public static function maybe_migrate_legacy_rule() {
-        $existing = get_option( self::OPTION_KEY, false );
-
-        if ( is_array( $existing ) && ! empty( $existing ) ) {
-            return;
-        }
-
-        $legacy = get_option( 'cptms_rule', false );
-
-        if ( ! is_array( $legacy ) ) {
-            return;
-        }
-
-        $post_type = isset( $legacy['post_type'] ) ? sanitize_key( $legacy['post_type'] ) : '';
-        $menu_id   = isset( $legacy['menu_id'] ) ? absint( $legacy['menu_id'] ) : 0;
-        $parent_id = isset( $legacy['parent_menu_item_id'] ) ? absint( $legacy['parent_menu_item_id'] ) : 0;
-
-        if (
-            ! $post_type ||
-            ! post_type_exists( $post_type ) ||
-            ! $menu_id ||
-            ! $parent_id ||
-            ! self::menu_contains_item( $menu_id, $parent_id )
-        ) {
-            return;
-        }
-
-        update_option(
-            self::OPTION_KEY,
-            array(
-                array(
-                    'id'                  => wp_generate_uuid4(),
-                    'enabled'             => true,
-                    'post_type'           => $post_type,
-                    'menu_id'             => $menu_id,
-                    'parent_menu_item_id' => $parent_id,
-                    'sort_mode'           => 'title_asc',
-                    'sync_title'          => true,
-                    'remove_missing'      => true,
-                    'adopt_existing'      => true,
-                ),
-            ),
-            false
-        );
-    }
-
     /**
      * Return all configured rules.
      *

@@ -26,6 +26,7 @@ final class CPTMS_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
         add_action( 'admin_post_cptms_save_rules', array( $this, 'handle_save' ) );
         add_action( 'admin_post_cptms_sync_now', array( $this, 'handle_sync_now' ) );
+        add_action( 'admin_post_cptms_check_updates', array( $this, 'handle_check_updates' ) );
         add_filter( 'plugin_action_links_' . plugin_basename( CPTMS_FILE ), array( $this, 'plugin_action_links' ) );
     }
 
@@ -108,6 +109,7 @@ final class CPTMS_Admin {
         $post_types = $this->get_post_types();
         $menus      = wp_get_nav_menus();
         $notice     = $this->consume_notice();
+        $updates    = class_exists( 'CPTMS_Updater' ) ? CPTMS_Updater::get_diagnostics() : array();
         ?>
         <div class="wrap cptms-wrap">
             <div class="cptms-header">
@@ -183,6 +185,72 @@ final class CPTMS_Admin {
                         <p><?php esc_html_e( '“Menu Order” uses WordPress’s native menu_order value, making it compatible with drag-and-drop post ordering plugins such as Post Types Order.', 'cpt-menu-sync' ); ?></p>
                     </div>
 
+                    <div class="cptms-panel cptms-updates">
+                        <h2><?php esc_html_e( 'GitHub Updates', 'cpt-menu-sync' ); ?></h2>
+
+                        <?php if ( ! empty( $updates ) ) : ?>
+                            <dl class="cptms-update-status">
+                                <div>
+                                    <dt><?php esc_html_e( 'Installed', 'cpt-menu-sync' ); ?></dt>
+                                    <dd><?php echo esc_html( isset( $updates['installed_version'] ) ? $updates['installed_version'] : CPTMS_VERSION ); ?></dd>
+                                </div>
+                                <div>
+                                    <dt><?php esc_html_e( 'Latest', 'cpt-menu-sync' ); ?></dt>
+                                    <dd><?php echo esc_html( ! empty( $updates['latest_version'] ) ? $updates['latest_version'] : '—' ); ?></dd>
+                                </div>
+                                <div>
+                                    <dt><?php esc_html_e( 'Status', 'cpt-menu-sync' ); ?></dt>
+                                    <dd>
+                                        <?php
+                                        $connection = isset( $updates['connection'] ) ? $updates['connection'] : 'not_checked';
+                                        if ( ! empty( $updates['update_available'] ) ) {
+                                            esc_html_e( 'Update available', 'cpt-menu-sync' );
+                                        } elseif ( 'connected' === $connection ) {
+                                            esc_html_e( 'Up to date', 'cpt-menu-sync' );
+                                        } elseif ( 'not_configured' === $connection ) {
+                                            esc_html_e( 'Not configured', 'cpt-menu-sync' );
+                                        } elseif ( 'error' === $connection ) {
+                                            esc_html_e( 'Connection error', 'cpt-menu-sync' );
+                                        } else {
+                                            esc_html_e( 'Not checked', 'cpt-menu-sync' );
+                                        }
+                                        ?>
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt><?php esc_html_e( 'Last check', 'cpt-menu-sync' ); ?></dt>
+                                    <dd>
+                                        <?php
+                                        if ( ! empty( $updates['last_checked'] ) ) {
+                                            echo esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), (int) $updates['last_checked'] ) );
+                                        } else {
+                                            echo '—';
+                                        }
+                                        ?>
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            <?php if ( ! empty( $updates['message'] ) ) : ?>
+                                <p class="description"><?php echo esc_html( $updates['message'] ); ?></p>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php if ( current_user_can( 'update_plugins' ) ) : ?>
+                            <form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+                                <input type="hidden" name="action" value="cptms_check_updates">
+                                <?php wp_nonce_field( 'cptms_check_updates' ); ?>
+                                <button type="submit" class="button button-secondary">
+                                    <span class="dashicons dashicons-update" aria-hidden="true"></span>
+                                    <?php esc_html_e( 'Check for Updates', 'cpt-menu-sync' ); ?>
+                                </button>
+                            </form>
+                        <?php endif; ?>
+
+                        <?php if ( class_exists( 'CPTMS_Updater' ) ) : ?>
+                            <p class="cptms-repo-link"><a href="<?php echo esc_url( CPTMS_Updater::releases_url() ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View GitHub Releases', 'cpt-menu-sync' ); ?></a></p>
+                        <?php endif; ?>
+                    </div>
 
                     <div class="cptms-panel cptms-about">
                         <h2><?php esc_html_e( 'CPT Menu Sync', 'cpt-menu-sync' ); ?></h2>
@@ -274,6 +342,45 @@ final class CPTMS_Admin {
         exit;
     }
 
+    /**
+     * Force a fresh GitHub release check.
+     */
+    public function handle_check_updates() {
+        if ( ! current_user_can( 'update_plugins' ) ) {
+            wp_die( esc_html__( 'You do not have permission to update plugins.', 'cpt-menu-sync' ) );
+        }
+
+        check_admin_referer( 'cptms_check_updates' );
+
+        $diagnostics = CPTMS_Updater::force_check();
+
+        if ( ! empty( $diagnostics['update_available'] ) ) {
+            $message = sprintf(
+                /* translators: %s: latest available plugin version. */
+                __( 'CPT Menu Sync %s is available through the WordPress plugin updater.', 'cpt-menu-sync' ),
+                $diagnostics['latest_version']
+            );
+            $type = 'success';
+        } elseif ( 'connected' === ( isset( $diagnostics['connection'] ) ? $diagnostics['connection'] : '' ) ) {
+            $message = __( 'CPT Menu Sync is up to date.', 'cpt-menu-sync' );
+            $type = 'success';
+        } else {
+            $message = ! empty( $diagnostics['message'] )
+                ? $diagnostics['message']
+                : __( 'CPT Menu Sync could not check GitHub Releases.', 'cpt-menu-sync' );
+            $type = 'error';
+        }
+
+        $this->store_notice(
+            array(
+                'type'    => $type,
+                'message' => $message,
+            )
+        );
+
+        wp_safe_redirect( admin_url( 'tools.php?page=' . self::PAGE_SLUG ) );
+        exit;
+    }
 
     /**
      * Render one configurable rule card.
